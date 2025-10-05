@@ -13,18 +13,39 @@ import (
 
 // createCanaryFailureIssue creates a GitHub issue for canary failures
 func createCanaryFailureIssue(logsBlob, analysisText, baseBranch, githubURL, modelName string) error {
-	owner, repo, err := extractOwnerRepoFromURL(githubURL)
-	if err != nil {
-		return fmt.Errorf("failed to extract owner/repo from URL: %v", err)
+	owner, repo, parseErr := extractOwnerRepoFromURL(githubURL)
+	if parseErr != nil {
+		return fmt.Errorf("failed to extract owner/repo from URL: %v", parseErr)
 	}
 
-	// Try to generate issue content with AI
-	issueTitle, issueBody, err := generateIssueContent(logsBlob, analysisText, baseBranch, modelName)
+	// Try to generate issue content with AI (with retries)
+	var issueTitle, issueBody string
+	var err error
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		issueTitle, issueBody, err = generateIssueContent(logsBlob, analysisText, baseBranch, modelName)
+		if err == nil && issueTitle != "" {
+			log.WithField("attempt", attempt).Info("Successfully generated issue content with AI")
+			break
+		}
+		if attempt < maxRetries {
+			if err != nil {
+				log.WithFields(log.Fields{
+					"attempt": attempt,
+					"error":   err,
+				}).Warning("Failed to generate issue content with AI, retrying...")
+			} else {
+				log.WithField("attempt", attempt).Warning("AI generated empty issue title, retrying...")
+			}
+		}
+	}
+
+	// Fall back to default if all retries failed
 	if err != nil || issueTitle == "" {
 		if err != nil {
-			log.WithError(err).Warning("Failed to generate issue content with AI, using fallback")
+			log.WithError(err).Warning("Failed to generate issue content with AI after retries, using fallback")
 		} else {
-			log.Warning("AI generated empty issue title, using fallback")
+			log.Warning("AI generated empty issue title after retries, using fallback")
 		}
 		issueTitle = "🚨 Canary Deployment Failed - AI Analysis Required"
 		issueBody = generateFallbackIssueBody(logsBlob, analysisText)
@@ -153,6 +174,13 @@ func createGitHubIssue(owner, repo, title, body string) error {
 		Title: &title,
 		Body:  &body,
 	}
+
+	log.WithFields(log.Fields{
+		"owner": owner,
+		"repo":  repo,
+		"title": title,
+		"body":  body,
+	}).Info("Creating GitHub issue")
 
 	_, _, err = client.Issues.Create(ctx, owner, repo, issue)
 	if err != nil {
