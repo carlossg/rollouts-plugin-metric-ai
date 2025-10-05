@@ -1,0 +1,139 @@
+package plugin
+
+import (
+	"context"
+	"encoding/json"
+	"testing"
+
+	v1alpha1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	"k8s.io/client-go/kubernetes"
+)
+
+func TestRun_ParsesConfigAndReturnsResult(t *testing.T) {
+	p := &RpcPlugin{}
+	analysisRun := &v1alpha1.AnalysisRun{}
+	analysisRun.Name = "test-analysis"
+	analysisRun.Namespace = "default"
+
+	cfg := aiConfig{Model: "gemini-1.5-pro-latest"}
+	b, _ := json.Marshal(cfg)
+
+	metric := v1alpha1.Metric{
+		Name: "ai-test",
+		Provider: v1alpha1.MetricProvider{
+			Plugin: map[string]json.RawMessage{
+				"argoproj-labs/metric-ai": b,
+			},
+		},
+	}
+
+	// Override AI call to avoid external dependency
+	old := analyzeLogsWithAI
+	analyzeLogsWithAI = func(modelName, logsContext string) (string, bool, string, error) {
+		return `{"text":"ok","promote":true,"confidence":100}`, true, "ok", nil
+	}
+	t.Cleanup(func() { analyzeLogsWithAI = old })
+
+	// Stub kube access
+	oldKC := acquireKubeClient
+	acquireKubeClient = func() (*kubernetes.Clientset, error) { return nil, nil }
+	t.Cleanup(func() { acquireKubeClient = oldKC })
+
+	oldLogs := readFirstPodLogs
+	readFirstPodLogs = func(ctx context.Context, _ *kubernetes.Clientset, _ string, _ string) (string, error) {
+		return "dummy", nil
+	}
+	t.Cleanup(func() { readFirstPodLogs = oldLogs })
+
+	measurement := p.Run(analysisRun, metric)
+	if measurement.Phase != v1alpha1.AnalysisPhaseSuccessful {
+		t.Fatalf("expected successful, got %s with message: %s", measurement.Phase, measurement.Message)
+	}
+	if measurement.Value != "1" {
+		t.Fatalf("expected value '1', got '%s'", measurement.Value)
+	}
+}
+
+func TestRun_FailureCreatesIssue(t *testing.T) {
+	p := &RpcPlugin{}
+	analysisRun := &v1alpha1.AnalysisRun{}
+	analysisRun.Name = "test-analysis"
+	analysisRun.Namespace = "default"
+
+	cfg := aiConfig{
+		Model:     "gemini-1.5-pro-latest",
+		GitHubURL: "https://github.com/owner/repo",
+	}
+	b, _ := json.Marshal(cfg)
+
+	metric := v1alpha1.Metric{
+		Name: "ai-test",
+		Provider: v1alpha1.MetricProvider{
+			Plugin: map[string]json.RawMessage{
+				"argoproj-labs/metric-ai": b,
+			},
+		},
+	}
+
+	// Override AI call to return failure
+	old := analyzeLogsWithAI
+	analyzeLogsWithAI = func(modelName, logsContext string) (string, bool, string, error) {
+		return `{"text":"canary is bad","promote":false,"confidence":90}`, false, "canary is bad", nil
+	}
+	t.Cleanup(func() { analyzeLogsWithAI = old })
+
+	// Stub kube access
+	oldKC := acquireKubeClient
+	acquireKubeClient = func() (*kubernetes.Clientset, error) { return nil, nil }
+	t.Cleanup(func() { acquireKubeClient = oldKC })
+
+	oldLogs := readFirstPodLogs
+	readFirstPodLogs = func(ctx context.Context, _ *kubernetes.Clientset, _ string, _ string) (string, error) {
+		return "dummy", nil
+	}
+	t.Cleanup(func() { readFirstPodLogs = oldLogs })
+
+	measurement := p.Run(analysisRun, metric)
+	if measurement.Phase != v1alpha1.AnalysisPhaseFailed {
+		t.Fatalf("expected failed, got %s", measurement.Phase)
+	}
+	if measurement.Value != "0" {
+		t.Fatalf("expected value '0', got '%s'", measurement.Value)
+	}
+}
+
+func TestGetMetadata(t *testing.T) {
+	p := &RpcPlugin{}
+
+	cfg := aiConfig{
+		Model:       "gemini-1.5-pro-latest",
+		StableLabel: "app=stable",
+		CanaryLabel: "app=canary",
+	}
+	b, _ := json.Marshal(cfg)
+
+	metric := v1alpha1.Metric{
+		Name: "ai-test",
+		Provider: v1alpha1.MetricProvider{
+			Plugin: map[string]json.RawMessage{
+				"argoproj-labs/metric-ai": b,
+			},
+		},
+	}
+
+	metadata := p.GetMetadata(metric)
+
+	if metadata["provider"] != ProviderType {
+		t.Fatalf("expected provider %s, got %s", ProviderType, metadata["provider"])
+	}
+	if metadata["model"] != "gemini-1.5-pro-latest" {
+		t.Fatalf("expected model gemini-1.5-pro-latest, got %s", metadata["model"])
+	}
+}
+
+func TestType(t *testing.T) {
+	p := &RpcPlugin{}
+	if p.Type() != ProviderType {
+		t.Fatalf("expected type %s, got %s", ProviderType, p.Type())
+	}
+}

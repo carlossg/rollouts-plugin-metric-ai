@@ -1,0 +1,9 @@
+nameReference:
+  - kind: Service
+    fieldSpecs:
+      - path: spec/strategy/canary/canaryService
+        kind: Rollout
+  - kind: AnalysisTemplate
+    fieldSpecs:
+      - path: spec/strategy/canary/analysis/templates[]/templateName
+        kind: Rollout

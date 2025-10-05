@@ -1,0 +1,10 @@
+resources:
+  - canary-service.yaml
+  - canary-ingress.yaml
+  - canary-preview-service.yaml
+  - canary-preview-ingress.yaml
+  - rollout-with-ai.yaml
+  - analysis-success-rate-ai.yaml
+  - traffic-generator.yaml
+configurations:
+  - kustomize-config.yaml

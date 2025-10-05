@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+	name: canary-analysis-with-agent
+	namespace: rollouts-test-system
+spec:
+	args:
+		- name: namespace
+		- name: canary-pod
+	metrics:
+		- name: ai-analysis-agent-mode
+			provider:
+				plugin:
+					ai-metric:
+						# NEW: Use agent mode for enhanced analysis
+						analysisMode: agent
+						namespace: "{{args.namespace}}"
+						podName: "{{args.canary-pod}}"
+						# Fallback fields for default mode
+						stablePodLabel: app=rollouts-demo,revision=stable
+						canaryPodLabel: app=rollouts-demo,revision=canary
+						model: gemini-2.0-flash-exp
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+	name: canary-analysis-default-mode
+	namespace: rollouts-test-system
+spec:
+	metrics:
+		- name: ai-analysis-default-mode
+			provider:
+				plugin:
+					ai-metric:
+						# Use default mode (current implementation)
+						analysisMode: default
+						stablePodLabel: app=rollouts-demo,revision=stable
+						canaryPodLabel: app=rollouts-demo,revision=canary
+						model: gemini-2.0-flash-exp
+
+
