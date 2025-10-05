@@ -29,8 +29,8 @@ func TestRun_ParsesConfigAndReturnsResult(t *testing.T) {
 
 	// Override AI call to avoid external dependency
 	old := analyzeLogsWithAI
-	analyzeLogsWithAI = func(modelName, logsContext string) (string, bool, string, error) {
-		return `{"text":"ok","promote":true,"confidence":100}`, true, "ok", nil
+	analyzeLogsWithAI = func(modelName, logsContext string) (string, AIAnalysisResult, error) {
+		return `{"text":"ok","promote":true,"confidence":100}`, AIAnalysisResult{Text: "ok", Promote: true, Confidence: 100}, nil
 	}
 	t.Cleanup(func() { analyzeLogsWithAI = old })
 
@@ -49,8 +49,12 @@ func TestRun_ParsesConfigAndReturnsResult(t *testing.T) {
 	if measurement.Phase != v1alpha1.AnalysisPhaseSuccessful {
 		t.Fatalf("expected successful, got %s with message: %s", measurement.Phase, measurement.Message)
 	}
-	if measurement.Value != "1" {
-		t.Fatalf("expected value '1', got '%s'", measurement.Value)
+	if measurement.Value != "1.00" {
+		t.Fatalf("expected value '1.00' (confidence 100%%), got '%s'", measurement.Value)
+	}
+	// Verify confidence is stored in metadata
+	if measurement.Metadata["confidence"] != "100" {
+		t.Fatalf("expected confidence '100', got '%s'", measurement.Metadata["confidence"])
 	}
 }
 
@@ -77,8 +81,8 @@ func TestRun_FailureCreatesIssue(t *testing.T) {
 
 	// Override AI call to return failure
 	old := analyzeLogsWithAI
-	analyzeLogsWithAI = func(modelName, logsContext string) (string, bool, string, error) {
-		return `{"text":"canary is bad","promote":false,"confidence":90}`, false, "canary is bad", nil
+	analyzeLogsWithAI = func(modelName, logsContext string) (string, AIAnalysisResult, error) {
+		return `{"text":"canary is bad","promote":false,"confidence":90}`, AIAnalysisResult{Text: "canary is bad", Promote: false, Confidence: 90}, nil
 	}
 	t.Cleanup(func() { analyzeLogsWithAI = old })
 

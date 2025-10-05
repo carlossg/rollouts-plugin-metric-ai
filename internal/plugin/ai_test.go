@@ -231,9 +231,9 @@ func TestAnalyzeLogsWithAI_Integration(t *testing.T) {
 
 	// Call the real function
 	t.Log("Calling real Google Gemini API...")
-	rawJSON, promote, analysisText, err := analyzeLogsWithAI(modelName, logsContext)
+	rawJSON, result, err := analyzeLogsWithAI(modelName, logsContext)
 	for i := 0; i < 5; i++ {
-		rawJSON, promote, analysisText, err = analyzeLogsWithAI(modelName, logsContext)
+		rawJSON, result, err = analyzeLogsWithAI(modelName, logsContext)
 	}
 
 	// Verify results
@@ -242,8 +242,9 @@ func TestAnalyzeLogsWithAI_Integration(t *testing.T) {
 	}
 
 	t.Logf("Raw JSON response: %s", rawJSON)
-	t.Logf("Promote decision: %v", promote)
-	t.Logf("Analysis text: %s", analysisText)
+	t.Logf("Promote decision: %v", result.Promote)
+	t.Logf("Analysis text: %s", result.Text)
+	t.Logf("Confidence: %d", result.Confidence)
 
 	// Verify response structure
 	if rawJSON == "" {
@@ -262,11 +263,14 @@ func TestAnalyzeLogsWithAI_Integration(t *testing.T) {
 		t.Logf("Parsed - Text: %s, Promote: %v, Confidence: %d", obj.Text, obj.Promote, obj.Confidence)
 
 		// Verify parsed values match returned values
-		if obj.Promote != promote {
-			t.Errorf("Parsed promote (%v) doesn't match returned promote (%v)", obj.Promote, promote)
+		if obj.Promote != result.Promote {
+			t.Errorf("Parsed promote (%v) doesn't match returned promote (%v)", obj.Promote, result.Promote)
 		}
-		if obj.Text != analysisText {
-			t.Errorf("Parsed text (%s) doesn't match returned text (%s)", obj.Text, analysisText)
+		if obj.Text != result.Text {
+			t.Errorf("Parsed text (%s) doesn't match returned text (%s)", obj.Text, result.Text)
+		}
+		if obj.Confidence != result.Confidence {
+			t.Errorf("Parsed confidence (%d) doesn't match returned confidence (%d)", obj.Confidence, result.Confidence)
 		}
 
 		// Verify confidence is in valid range
@@ -276,7 +280,7 @@ func TestAnalyzeLogsWithAI_Integration(t *testing.T) {
 	}
 
 	// Verify analysis text is not empty
-	if analysisText == "" {
+	if result.Text == "" {
 		t.Error("Expected non-empty analysis text")
 	}
 
@@ -301,7 +305,7 @@ func TestAnalyzeLogsWithAI_Integration_ErrorHandling(t *testing.T) {
 		defer func() { googleAPIKey = oldAPIKey }()
 
 		logsContext := "test logs"
-		_, _, _, err := analyzeLogsWithAI("invalid-model-name-12345", logsContext)
+		_, _, err := analyzeLogsWithAI("invalid-model-name-12345", logsContext)
 
 		if err == nil {
 			t.Error("Expected error with invalid model name")
@@ -316,15 +320,15 @@ func TestAnalyzeLogsWithAI_Integration_ErrorHandling(t *testing.T) {
 		googleAPIKey = apiKey
 		defer func() { googleAPIKey = oldAPIKey }()
 
-		_, promote, _, err := analyzeLogsWithAI("gemini-2.0-flash-exp", "")
+		_, result, err := analyzeLogsWithAI("gemini-2.0-flash-exp", "")
 
 		// Should still work but might default to promote:true
 		if err != nil {
 			t.Logf("Error with empty logs (may be expected): %v", err)
 		} else {
-			t.Logf("Empty logs result - promote: %v", promote)
+			t.Logf("Empty logs result - promote: %v", result.Promote)
 			// Per the prompt, should default to promote:true when lacking information
-			if !promote {
+			if !result.Promote {
 				t.Log("Note: Empty logs resulted in promote:false (may want to verify this behavior)")
 			}
 		}

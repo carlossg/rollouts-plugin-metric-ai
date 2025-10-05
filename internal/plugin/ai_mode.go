@@ -14,7 +14,7 @@ const (
 )
 
 // analyzeWithMode analyzes logs using the specified mode
-func analyzeWithMode(mode, modelName, logsContext, namespace, podName string) (string, bool, string, error) {
+func analyzeWithMode(mode, modelName, logsContext, namespace, podName string) (string, AIAnalysisResult, error) {
 	log.WithFields(log.Fields{
 		"mode":      mode,
 		"namespace": namespace,
@@ -30,7 +30,7 @@ func analyzeWithMode(mode, modelName, logsContext, namespace, podName string) (s
 }
 
 // analyzeWithKubernetesAgent delegates analysis to the Kubernetes Agent via A2A
-func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string, bool, string, error) {
+func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string, AIAnalysisResult, error) {
 	agentURL := os.Getenv("K8S_AGENT_URL")
 	if agentURL == "" {
 		agentURL = "http://kubernetes-agent.argo-rollouts.svc.cluster.local:8080"
@@ -56,6 +56,13 @@ func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string,
 		return analyzeLogsWithAI("gemini-2.0-flash-exp", logsContext)
 	}
 
+	// Build result object
+	result := AIAnalysisResult{
+		Text:       resp.Analysis,
+		Promote:    resp.Promote,
+		Confidence: resp.Confidence,
+	}
+
 	// Build JSON response for Argo Rollouts
 	jsonResp := map[string]interface{}{
 		"text":        resp.Analysis,
@@ -71,7 +78,7 @@ func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string,
 
 	rawJSON, err := json.Marshal(jsonResp)
 	if err != nil {
-		return "", false, "", err
+		return "", AIAnalysisResult{}, err
 	}
 
 	log.WithFields(log.Fields{
@@ -79,5 +86,5 @@ func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string,
 		"confidence": resp.Confidence,
 	}).Info("Analysis completed via Kubernetes Agent")
 
-	return string(rawJSON), resp.Promote, resp.Analysis, nil
+	return string(rawJSON), result, nil
 }

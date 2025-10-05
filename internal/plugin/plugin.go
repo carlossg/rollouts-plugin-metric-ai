@@ -229,27 +229,30 @@ func (p *RpcPlugin) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 		"model": modelName,
 		"mode":  analysisMode,
 	}).Info("Starting AI analysis")
-	analysisJSON, promote, analysisText, aiErr := analyzeWithMode(analysisMode, modelName, logsContext, namespace, podName)
+	analysisJSON, result, aiErr := analyzeWithMode(analysisMode, modelName, logsContext, namespace, podName)
 	if aiErr != nil {
 		log.WithError(aiErr).Error("AI analysis failed")
 		return markMeasurementError(newMeasurement, aiErr)
 	}
 
 	log.WithFields(log.Fields{
-		"promote":        promote,
-		"analysisLength": len(analysisText),
+		"promote":        result.Promote,
+		"confidence":     result.Confidence,
+		"analysisLength": len(result.Text),
 	}).Info("AI analysis completed")
 
 	// Store analysis in metadata
 	if newMeasurement.Metadata == nil {
 		newMeasurement.Metadata = make(map[string]string)
 	}
-	newMeasurement.Metadata["analysis"] = analysisText
+	newMeasurement.Metadata["analysis"] = result.Text
 	newMeasurement.Metadata["analysisJSON"] = analysisJSON
+	newMeasurement.Metadata["confidence"] = fmt.Sprintf("%d", result.Confidence)
 
-	if promote {
+	if result.Promote {
 		// Success: canary is good
-		newMeasurement.Value = "1"
+		// Use confidence as a decimal value (0.0 to 1.0)
+		newMeasurement.Value = fmt.Sprintf("%.2f", float64(result.Confidence)/100.0)
 		newMeasurement.Phase = v1alpha1.AnalysisPhaseSuccessful
 		log.Info("Canary promotion recommended by AI analysis")
 	} else {
@@ -259,7 +262,7 @@ func (p *RpcPlugin) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 		log.Info("Canary promotion not recommended, attempting to create GitHub issue")
 
 		// Create GitHub issue on failure
-		if issueErr := createCanaryFailureIssue(logsContext, analysisText, cfg.BaseBranch, cfg.GitHubURL, modelName); issueErr != nil {
+		if issueErr := createCanaryFailureIssue(logsContext, result.Text, cfg.BaseBranch, cfg.GitHubURL, modelName); issueErr != nil {
 			log.WithError(issueErr).Warn("Failed to create GitHub issue")
 		}
 	}

@@ -4,14 +4,14 @@ metadata:
   name: success-rate-ai
 spec:
   args:
-  - name: ingress
+    - name: ingress
   metrics:
-  - name: success-rate
-    interval: 10s
-    successCondition: result > 0.90
-    provider:
-      plugin:
-        argoproj-labs/metric-ai:
-          model: gemini-2.0-flash
-          baseBranch: main
-          githubUrl: https://github.com/carlossg/rollouts-demo
+    - name: success-rate
+      interval: 10s
+      successCondition: result > 0.50
+      provider:
+        plugin:
+          argoproj-labs/metric-ai:
+            model: gemini-2.0-flash
+            baseBranch: main
+            githubUrl: https://github.com/carlossg/rollouts-demo

@@ -19,11 +19,18 @@ const (
 	typeURLQuotaFailure = "type.googleapis.com/google.rpc.QuotaFailure"
 )
 
+// AIAnalysisResult represents the result of AI analysis
+type AIAnalysisResult struct {
+	Text       string `json:"text"`
+	Promote    bool   `json:"promote"`
+	Confidence int    `json:"confidence"`
+}
+
 // analyzeLogsWithAI analyzes canary logs using AI
-var analyzeLogsWithAI = func(modelName, logsContext string) (rawJSON string, promote bool, analysisText string, err error) {
+var analyzeLogsWithAI = func(modelName, logsContext string) (rawJSON string, result AIAnalysisResult, err error) {
 	apiKey, err := getSecretValue("argo-rollouts", "google_api_key")
 	if err != nil {
-		return "", false, "", fmt.Errorf("failed to get Google API key from secret: %v", err)
+		return "", AIAnalysisResult{}, fmt.Errorf("failed to get Google API key from secret: %v", err)
 	}
 	ctx := context.Background()
 
@@ -33,7 +40,7 @@ var analyzeLogsWithAI = func(modelName, logsContext string) (rawJSON string, pro
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		return "", false, "", err
+		return "", AIAnalysisResult{}, err
 	}
 
 	system := "Analyze what was this canary behavior based on these logs, compare the stable version vs the canary version. " +
@@ -56,18 +63,14 @@ var analyzeLogsWithAI = func(modelName, logsContext string) (rawJSON string, pro
 		return apiErr
 	}, 3) // Max 3 retries
 	if err != nil {
-		return "", false, "", err
+		return "", AIAnalysisResult{}, err
 	}
 
 	txt := concatCandidates(resp)
 	rawJSON = strings.TrimSpace(txt)
 
 	// attempt to parse
-	var obj struct {
-		Text       string `json:"text"`
-		Promote    bool   `json:"promote"`
-		Confidence int    `json:"confidence"`
-	}
+	var obj AIAnalysisResult
 	if e := json.Unmarshal([]byte(rawJSON), &obj); e != nil {
 		// model might have returned extra text; try to extract JSON block
 		if j := extractFirstJSON(rawJSON); j != "" {
@@ -75,7 +78,7 @@ var analyzeLogsWithAI = func(modelName, logsContext string) (rawJSON string, pro
 			_ = json.Unmarshal([]byte(rawJSON), &obj)
 		}
 	}
-	return rawJSON, obj.Promote, obj.Text, nil
+	return rawJSON, obj, nil
 }
 
 // retryWithBackoff implements exponential backoff for API calls with 429 error handling
