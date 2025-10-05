@@ -23,9 +23,9 @@ patches:
     name: argo-rollouts-config
 - patch: |
     # set imagePullPolicy to IfNotPresent for dind
-    - op: replace
-      path: /spec/template/spec/containers/0/imagePullPolicy
-      value: IfNotPresent
+    # - op: replace
+    #   path: /spec/template/spec/containers/0/imagePullPolicy
+    #   value: IfNotPresent
     # set loglevel to debug
     - op: replace
       path: /spec/template/spec/containers/0/args
