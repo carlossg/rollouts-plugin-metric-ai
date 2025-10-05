@@ -171,7 +171,7 @@ func createGitHubIssue(owner, repo, title, body string) error {
 	client := github.NewClient(nil).WithAuthToken(githubToken)
 
 	// Assign to GitHub Copilot and add "jules" label
-	copilotAssignee := "copilot"
+	copilotAssignee := "copilot-swe-agent"
 	julesLabel := "jules"
 	issue := &github.IssueRequest{
 		Title:     &title,
