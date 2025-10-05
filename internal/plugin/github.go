@@ -170,27 +170,36 @@ func createGitHubIssue(owner, repo, title, body string) error {
 	ctx := context.Background()
 	client := github.NewClient(nil).WithAuthToken(githubToken)
 
+	// Assign to GitHub Copilot and add "jules" label
+	copilotAssignee := "copilot"
+	julesLabel := "jules"
 	issue := &github.IssueRequest{
-		Title: &title,
-		Body:  &body,
+		Title:     &title,
+		Body:      &body,
+		Assignees: &[]string{copilotAssignee},
+		Labels:    &[]string{julesLabel},
 	}
 
 	log.WithFields(log.Fields{
-		"owner": owner,
-		"repo":  repo,
-		"title": title,
-		"body":  body,
+		"owner":    owner,
+		"repo":     repo,
+		"title":    title,
+		"assignee": copilotAssignee,
+		"label":    julesLabel,
 	}).Info("Creating GitHub issue")
 
-	_, _, err = client.Issues.Create(ctx, owner, repo, issue)
+	createdIssue, _, err := client.Issues.Create(ctx, owner, repo, issue)
 	if err != nil {
 		return fmt.Errorf("failed to create GitHub issue: %v", err)
 	}
 
 	log.WithFields(log.Fields{
-		"owner": owner,
-		"repo":  repo,
-		"title": title,
+		"owner":       owner,
+		"repo":        repo,
+		"title":       title,
+		"issueNumber": createdIssue.GetNumber(),
+		"assignee":    copilotAssignee,
+		"label":       julesLabel,
 	}).Info("Successfully created GitHub issue")
 
 	return nil
