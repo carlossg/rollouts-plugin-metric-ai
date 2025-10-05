@@ -20,8 +20,12 @@ func createCanaryFailureIssue(logsBlob, analysisText, baseBranch, githubURL, mod
 
 	// Try to generate issue content with AI
 	issueTitle, issueBody, err := generateIssueContent(logsBlob, analysisText, baseBranch, modelName)
-	if err != nil {
-		log.WithError(err).Warning("Failed to generate issue content with AI, using fallback")
+	if err != nil || issueTitle == "" {
+		if err != nil {
+			log.WithError(err).Warning("Failed to generate issue content with AI, using fallback")
+		} else {
+			log.Warning("AI generated empty issue title, using fallback")
+		}
 		issueTitle = "🚨 Canary Deployment Failed - AI Analysis Required"
 		issueBody = generateFallbackIssueBody(logsBlob, analysisText)
 	}
