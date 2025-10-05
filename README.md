@@ -18,15 +18,22 @@ data:
       location: "file://./rollouts-plugin-metric-ai/bin/metric-ai"
 ```
 
-Use in a Rollout step:
+Use in an AnalysisTemplate:
 
 ```yaml
-- plugin:
-    name: argoproj-labs/metric-ai
-    config:
-      model: gemini-2.0-flash
-      stableLabel: "role=stable"
-      canaryLabel: "role=canary"
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-analysis
+spec:
+  metrics:
+    - name: ai-analysis
+      provider:
+        plugin:
+          argoproj-labs/metric-ai:
+            model: gemini-2.0-flash-exp
+            baseBranch: main
+            githubUrl: https://github.com/carlossg/rollouts-demo
 ```
 
 Environment variables:
