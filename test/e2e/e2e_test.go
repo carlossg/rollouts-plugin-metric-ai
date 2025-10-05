@@ -68,6 +68,11 @@ var _ = Describe("Manager", Ordered, func() {
 		_, err = utils.Run(cmd)
 		Expect(err).NotTo(HaveOccurred(), "Failed to install CRDs")
 
+		By("deleting the canary-demo rollout")
+		cmd = exec.Command("kubectl", "delete", "rollout", rolloutName, "-n", namespace)
+		_, err = utils.Run(cmd)
+		Expect(err).NotTo(HaveOccurred(), "Failed to delete the canary-demo rollout")
+
 		By("deploying the image and creating canary-demo rollout")
 		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
 		_, err = utils.Run(cmd)
