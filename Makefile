@@ -87,26 +87,19 @@ cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
 .PHONY: config/argo-rollouts/secret.yaml
 config/argo-rollouts/secret.yaml: config/argo-rollouts/secret.yaml.template
 	@if [ ! -f .env ]; then \
-		echo "Error: .env file not found. Run 'make setup-env' first"; \
-		exit 1; \
-	fi
-	@echo "Loading and validating environment variables from .env file..."
-	@export $$(grep -v '^#' .env | xargs) && \
+		echo "⚠️  Warning: .env file not found. Using environment variables directly."; \
+	else \
+		echo "Loading environment variables from .env file..."; \
+		export $$(grep -v '^#' .env | xargs); \
+	fi; \
 	if [ -z "$$GOOGLE_API_KEY" ]; then \
-		echo "Error: GOOGLE_API_KEY not set in .env"; \
-		exit 1; \
-	fi && \
-	if [ -z "$$AZURE_OPENAI_API_KEY" ]; then \
-		echo "Error: AZURE_OPENAI_API_KEY not set in .env"; \
-		exit 1; \
-	fi && \
+		echo "⚠️  Warning: GOOGLE_API_KEY not set"; \
+	fi; \
 	if [ -z "$$GITHUB_TOKEN" ]; then \
-		echo "Error: GITHUB_TOKEN not set in .env"; \
-		exit 1; \
-	fi && \
-	echo "✅ All required environment variables are set" && \
-	echo "Generating secret from environment variables..." && \
-	GOOGLE_CLOUD_PROJECT=$$(gcloud config get-value project) envsubst < config/argo-rollouts/secret.yaml.template > config/argo-rollouts/secret.yaml
+		echo "⚠️  Warning: GITHUB_TOKEN not set"; \
+	fi; \
+	echo "Generating secret from environment variables..."; \
+	GOOGLE_CLOUD_PROJECT=$$(gcloud config get-value project 2>/dev/null || echo "") envsubst < config/argo-rollouts/secret.yaml.template > config/argo-rollouts/secret.yaml
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter
