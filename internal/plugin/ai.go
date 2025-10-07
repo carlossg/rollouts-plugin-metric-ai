@@ -27,7 +27,7 @@ type AIAnalysisResult struct {
 }
 
 // analyzeLogsWithAI analyzes canary logs using AI
-var analyzeLogsWithAI = func(modelName, logsContext string) (rawJSON string, result AIAnalysisResult, err error) {
+var analyzeLogsWithAI = func(modelName, logsContext, extraPrompt string) (rawJSON string, result AIAnalysisResult, err error) {
 	apiKey, err := getSecretValue("argo-rollouts", "google_api_key")
 	if err != nil {
 		return "", AIAnalysisResult{}, fmt.Errorf("failed to get Google API key from secret: %v", err)
@@ -50,6 +50,11 @@ var analyzeLogsWithAI = func(modelName, logsContext string) (rawJSON string, res
 		"one named 'confidence' with a number from 0 to 100 representing your confidence in the decision. " +
 		"The stable version logs start with '--- STABLE LOGS ---' and the canary version logs start with '--- CANARY LOGS ---'." +
 		"In case that you cannot make a determination due to lack of information, default to promote: true."
+
+	// Append extra prompt if provided
+	if extraPrompt != "" {
+		system += "\n\nAdditional context: " + extraPrompt
+	}
 
 	// Use the new API structure
 	parts := []*genai.Part{

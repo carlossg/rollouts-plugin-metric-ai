@@ -60,6 +60,7 @@ spec:
             canaryPodLabel: app=rollouts-demo,revision=canary
             baseBranch: main
             githubUrl: https://github.com/carlossg/rollouts-demo
+            extraPrompt: "Pay special attention to database connection errors and memory usage patterns."
 ```
 
 ### Agent Mode (Kubernetes Agent via A2A)
@@ -88,6 +89,7 @@ spec:
             model: gemini-2.0-flash-exp
             baseBranch: main
             githubUrl: https://github.com/carlossg/rollouts-demo
+            extraPrompt: "Focus on error rates and response times. Consider this a critical production deployment."
 ```
 
 ### Agent Mode Prerequisites
@@ -103,6 +105,21 @@ The plugin will automatically fall back to default mode if:
 - Kubernetes Agent is not available or health check fails
 - A2A communication fails
 
+### Extra Prompt Feature
+
+The `extraPrompt` parameter allows you to provide additional context to the AI analysis. This text is appended to the standard analysis prompt, giving you fine-grained control over what the AI should focus on.
+
+**Use cases:**
+- **Performance focus**: "Focus on response times and throughput metrics"
+- **Error analysis**: "Pay special attention to error rates and exception patterns"
+- **Business context**: "This is a critical payment processing service - prioritize stability"
+- **Technical constraints**: "Consider memory usage patterns and database connection limits"
+
+**Example:**
+```yaml
+extraPrompt: "This is a high-traffic e-commerce service. Focus on error rates, response times, and any database connection issues. Consider the business impact of any failures."
+```
+
 ## Configuration Fields
 
 ### Plugin Configuration Fields
@@ -117,6 +134,7 @@ The plugin will automatically fall back to default mode if:
 | `podName` | string | Yes* | Pod name for agent mode (*required for agent mode) |
 | `baseBranch` | string | No | Git base branch for PR creation |
 | `githubUrl` | string | No | GitHub repository URL for issue/PR creation |
+| `extraPrompt` | string | No | Additional context text to append to the AI analysis prompt |
 
 ### Environment Variables
 

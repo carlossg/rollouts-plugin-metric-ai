@@ -114,6 +114,8 @@ type aiConfig struct {
 	Namespace string `json:"namespace,omitempty"`
 	// Pod name for agent mode
 	PodName string `json:"podName,omitempty"`
+	// Extra prompt text to append to the AI analysis
+	ExtraPrompt string `json:"extraPrompt,omitempty"`
 }
 
 func (g *RpcPlugin) InitPlugin() types.RpcError {
@@ -229,7 +231,7 @@ func (p *RpcPlugin) Run(analysisRun *v1alpha1.AnalysisRun, metric v1alpha1.Metri
 		"model": modelName,
 		"mode":  analysisMode,
 	}).Info("Starting AI analysis")
-	analysisJSON, result, aiErr := analyzeWithMode(analysisMode, modelName, logsContext, namespace, podName)
+	analysisJSON, result, aiErr := analyzeWithMode(analysisMode, modelName, logsContext, namespace, podName, cfg.ExtraPrompt)
 	if aiErr != nil {
 		log.WithError(aiErr).Error("AI analysis failed")
 		return markMeasurementError(newMeasurement, aiErr)

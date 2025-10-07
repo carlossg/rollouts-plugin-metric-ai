@@ -14,7 +14,7 @@ const (
 )
 
 // analyzeWithMode analyzes logs using the specified mode
-func analyzeWithMode(mode, modelName, logsContext, namespace, podName string) (string, AIAnalysisResult, error) {
+func analyzeWithMode(mode, modelName, logsContext, namespace, podName, extraPrompt string) (string, AIAnalysisResult, error) {
 	log.WithFields(log.Fields{
 		"mode":      mode,
 		"namespace": namespace,
@@ -25,7 +25,7 @@ func analyzeWithMode(mode, modelName, logsContext, namespace, podName string) (s
 	case AnalysisModeAgent:
 		return analyzeWithKubernetesAgent(namespace, podName, logsContext)
 	default:
-		return analyzeLogsWithAI(modelName, logsContext)
+		return analyzeLogsWithAI(modelName, logsContext, extraPrompt)
 	}
 }
 
@@ -43,7 +43,7 @@ func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string,
 	// Health check first
 	if err := client.HealthCheck(); err != nil {
 		log.WithError(err).Error("Kubernetes Agent health check failed, falling back to default mode")
-		return analyzeLogsWithAI("gemini-2.0-flash-exp", logsContext)
+		return analyzeLogsWithAI("gemini-2.0-flash-exp", logsContext, "")
 	}
 
 	// Extract stable and canary logs from logsContext
@@ -53,7 +53,7 @@ func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string,
 	resp, err := client.AnalyzeWithAgent(namespace, podName, stableLogs, canaryLogs)
 	if err != nil {
 		log.WithError(err).Error("Failed to analyze with kubernetes-agent, falling back to default mode")
-		return analyzeLogsWithAI("gemini-2.0-flash-exp", logsContext)
+		return analyzeLogsWithAI("gemini-2.0-flash-exp", logsContext, "")
 	}
 
 	// Build result object

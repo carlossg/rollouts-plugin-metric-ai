@@ -231,9 +231,9 @@ func TestAnalyzeLogsWithAI_Integration(t *testing.T) {
 
 	// Call the real function
 	t.Log("Calling real Google Gemini API...")
-	rawJSON, result, err := analyzeLogsWithAI(modelName, logsContext)
+	rawJSON, result, err := analyzeLogsWithAI(modelName, logsContext, "")
 	for i := 0; i < 5; i++ {
-		rawJSON, result, err = analyzeLogsWithAI(modelName, logsContext)
+		rawJSON, result, err = analyzeLogsWithAI(modelName, logsContext, "")
 	}
 
 	// Verify results
@@ -305,7 +305,7 @@ func TestAnalyzeLogsWithAI_Integration_ErrorHandling(t *testing.T) {
 		defer func() { googleAPIKey = oldAPIKey }()
 
 		logsContext := "test logs"
-		_, _, err := analyzeLogsWithAI("invalid-model-name-12345", logsContext)
+		_, _, err := analyzeLogsWithAI("invalid-model-name-12345", logsContext, "")
 
 		if err == nil {
 			t.Error("Expected error with invalid model name")
@@ -320,7 +320,7 @@ func TestAnalyzeLogsWithAI_Integration_ErrorHandling(t *testing.T) {
 		googleAPIKey = apiKey
 		defer func() { googleAPIKey = oldAPIKey }()
 
-		_, result, err := analyzeLogsWithAI("gemini-2.0-flash-exp", "")
+		_, result, err := analyzeLogsWithAI("gemini-2.0-flash-exp", "", "")
 
 		// Should still work but might default to promote:true
 		if err != nil {

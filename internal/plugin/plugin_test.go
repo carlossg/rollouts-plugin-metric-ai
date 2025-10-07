@@ -29,7 +29,7 @@ func TestRun_ParsesConfigAndReturnsResult(t *testing.T) {
 
 	// Override AI call to avoid external dependency
 	old := analyzeLogsWithAI
-	analyzeLogsWithAI = func(modelName, logsContext string) (string, AIAnalysisResult, error) {
+	analyzeLogsWithAI = func(modelName, logsContext, extraPrompt string) (string, AIAnalysisResult, error) {
 		return `{"text":"ok","promote":true,"confidence":100}`, AIAnalysisResult{Text: "ok", Promote: true, Confidence: 100}, nil
 	}
 	t.Cleanup(func() { analyzeLogsWithAI = old })
@@ -81,7 +81,7 @@ func TestRun_FailureCreatesIssue(t *testing.T) {
 
 	// Override AI call to return failure
 	old := analyzeLogsWithAI
-	analyzeLogsWithAI = func(modelName, logsContext string) (string, AIAnalysisResult, error) {
+	analyzeLogsWithAI = func(modelName, logsContext, extraPrompt string) (string, AIAnalysisResult, error) {
 		return `{"text":"canary is bad","promote":false,"confidence":90}`, AIAnalysisResult{Text: "canary is bad", Promote: false, Confidence: 90}, nil
 	}
 	t.Cleanup(func() { analyzeLogsWithAI = old })
