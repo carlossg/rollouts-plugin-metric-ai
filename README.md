@@ -36,11 +36,97 @@ spec:
             githubUrl: https://github.com/carlossg/rollouts-demo
 ```
 
-Environment variables:
-- GOOGLE_API_KEY: required for Gemini
-- GITHUB_TOKEN
-- AUTO_PR_ENABLED=true|false
-- LOG_LEVEL: log level for the plugin (panic, fatal, error, warn, info, debug, trace). Default: info
+## Analysis Modes
+
+The plugin supports two analysis modes:
+
+### Default Mode (Direct AI Analysis)
+Uses Gemini AI directly to analyze pod logs:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-analysis-default
+spec:
+  metrics:
+    - name: ai-analysis
+      provider:
+        plugin:
+          argoproj-labs/metric-ai:
+            analysisMode: default
+            model: gemini-2.0-flash-exp
+            stablePodLabel: app=rollouts-demo,revision=stable
+            canaryPodLabel: app=rollouts-demo,revision=canary
+            baseBranch: main
+            githubUrl: https://github.com/carlossg/rollouts-demo
+```
+
+### Agent Mode (Kubernetes Agent via A2A)
+Delegates analysis to a Kubernetes Agent using the A2A protocol for enhanced analysis:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-analysis-agent
+spec:
+  args:
+    - name: namespace
+    - name: canary-pod
+  metrics:
+    - name: ai-analysis
+      provider:
+        plugin:
+          argoproj-labs/metric-ai:
+            analysisMode: agent
+            namespace: "{{args.namespace}}"
+            podName: "{{args.canary-pod}}"
+            # Fallback fields for default mode
+            stablePodLabel: app=rollouts-demo,revision=stable
+            canaryPodLabel: app=rollouts-demo,revision=canary
+            model: gemini-2.0-flash-exp
+            baseBranch: main
+            githubUrl: https://github.com/carlossg/rollouts-demo
+```
+
+### Agent Mode Prerequisites
+
+For agent mode to work, you need:
+
+1. **Kubernetes Agent deployed** in the cluster
+2. **A2A protocol communication** enabled
+3. **Environment variable** `K8S_AGENT_URL` (defaults to `http://kubernetes-agent.argo-rollouts.svc.cluster.local:8080`)
+
+The plugin will automatically fall back to default mode if:
+- Agent mode is configured but `namespace` or `podName` is missing
+- Kubernetes Agent is not available or health check fails
+- A2A communication fails
+
+## Configuration Fields
+
+### Plugin Configuration Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `model` | string | Yes | Gemini model to use (e.g., `gemini-2.0-flash-exp`) |
+| `analysisMode` | string | No | Analysis mode: `default` or `agent` (default: `default`) |
+| `stablePodLabel` | string | Yes* | Label selector for stable pods (*required for default mode) |
+| `canaryPodLabel` | string | Yes* | Label selector for canary pods (*required for default mode) |
+| `namespace` | string | Yes* | Namespace for agent mode (*required for agent mode) |
+| `podName` | string | Yes* | Pod name for agent mode (*required for agent mode) |
+| `baseBranch` | string | No | Git base branch for PR creation |
+| `githubUrl` | string | No | GitHub repository URL for issue/PR creation |
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GOOGLE_API_KEY` | Yes | Google API key for Gemini AI |
+| `GITHUB_TOKEN` | No | GitHub token for issue/PR creation |
+| `AUTO_PR_ENABLED` | No | Enable automatic PR creation (`true`/`false`) |
+| `K8S_AGENT_URL` | No | Kubernetes Agent URL (default: `http://kubernetes-agent.argo-rollouts.svc.cluster.local:8080`) |
+| `LOG_LEVEL` | No | Log level (`panic`, `fatal`, `error`, `warn`, `info`, `debug`, `trace`). Default: `info` |
 
 ## Building
 
@@ -141,6 +227,41 @@ When `LOG_LEVEL=debug` or `LOG_LEVEL=trace`, the plugin will log:
 - GitHub API interactions
 - Rate limiting and retry attempts
 - Performance metrics
+- Agent mode communication (A2A protocol)
+- Fallback behavior when agent mode fails
+
+## Troubleshooting
+
+### Agent Mode Issues
+
+If agent mode is not working, check:
+
+1. **Kubernetes Agent is deployed:**
+   ```bash
+   kubectl get pods -n argo-rollouts | grep kubernetes-agent
+   ```
+
+2. **Agent health check:**
+   ```bash
+   kubectl logs -n argo-rollouts deployment/argo-rollouts | grep "agent"
+   ```
+
+3. **A2A communication:**
+   ```bash
+   kubectl logs -n argo-rollouts deployment/argo-rollouts | grep "A2A\|agent"
+   ```
+
+4. **Environment variable:**
+   ```bash
+   kubectl get deployment argo-rollouts -n argo-rollouts -o yaml | grep K8S_AGENT_URL
+   ```
+
+### Common Issues
+
+- **"Agent mode requires namespace and podName"**: Ensure both fields are provided in the AnalysisTemplate
+- **"Kubernetes Agent health check failed"**: Check if the agent is running and accessible
+- **"Failed to analyze with kubernetes-agent"**: Check agent logs and network connectivity
+- **Fallback to default mode**: The plugin automatically falls back to default mode if agent mode fails
 
 # Testing
 
