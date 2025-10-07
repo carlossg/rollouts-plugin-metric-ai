@@ -26,8 +26,15 @@ type AIAnalysisResult struct {
 	Confidence int    `json:"confidence"`
 }
 
+// AIAnalysisParams represents parameters for AI analysis
+type AIAnalysisParams struct {
+	ModelName   string
+	LogsContext string
+	ExtraPrompt string
+}
+
 // analyzeLogsWithAI analyzes canary logs using AI
-var analyzeLogsWithAI = func(modelName, logsContext, extraPrompt string) (rawJSON string, result AIAnalysisResult, err error) {
+var analyzeLogsWithAI = func(params AIAnalysisParams) (rawJSON string, result AIAnalysisResult, err error) {
 	apiKey, err := getSecretValue("argo-rollouts", "google_api_key")
 	if err != nil {
 		return "", AIAnalysisResult{}, fmt.Errorf("failed to get Google API key from secret: %v", err)
@@ -52,19 +59,19 @@ var analyzeLogsWithAI = func(modelName, logsContext, extraPrompt string) (rawJSO
 		"In case that you cannot make a determination due to lack of information, default to promote: true."
 
 	// Append extra prompt if provided
-	if extraPrompt != "" {
-		system += "\n\nAdditional context: " + extraPrompt
+	if params.ExtraPrompt != "" {
+		system += "\n\nAdditional context: " + params.ExtraPrompt
 	}
 
 	// Use the new API structure
 	parts := []*genai.Part{
-		{Text: system + "\n\n" + logsContext},
+		{Text: system + "\n\n" + params.LogsContext},
 	}
 
 	var resp *genai.GenerateContentResponse
 	err = retryWithBackoff(ctx, func() error {
 		var apiErr error
-		resp, apiErr = client.Models.GenerateContent(ctx, modelName, []*genai.Content{{Parts: parts}}, nil)
+		resp, apiErr = client.Models.GenerateContent(ctx, params.ModelName, []*genai.Content{{Parts: parts}}, nil)
 		return apiErr
 	}, 3) // Max 3 retries
 	if err != nil {

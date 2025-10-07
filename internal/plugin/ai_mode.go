@@ -25,7 +25,12 @@ func analyzeWithMode(mode, modelName, logsContext, namespace, podName, extraProm
 	case AnalysisModeAgent:
 		return analyzeWithKubernetesAgent(namespace, podName, logsContext)
 	default:
-		return analyzeLogsWithAI(modelName, logsContext, extraPrompt)
+		params := AIAnalysisParams{
+			ModelName:   modelName,
+			LogsContext: logsContext,
+			ExtraPrompt: extraPrompt,
+		}
+		return analyzeLogsWithAI(params)
 	}
 }
 
@@ -43,7 +48,12 @@ func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string,
 	// Health check first
 	if err := client.HealthCheck(); err != nil {
 		log.WithError(err).Error("Kubernetes Agent health check failed, falling back to default mode")
-		return analyzeLogsWithAI("gemini-2.0-flash-exp", logsContext, "")
+		params := AIAnalysisParams{
+			ModelName:   "gemini-2.0-flash-exp",
+			LogsContext: logsContext,
+			ExtraPrompt: "",
+		}
+		return analyzeLogsWithAI(params)
 	}
 
 	// Extract stable and canary logs from logsContext
@@ -53,7 +63,12 @@ func analyzeWithKubernetesAgent(namespace, podName, logsContext string) (string,
 	resp, err := client.AnalyzeWithAgent(namespace, podName, stableLogs, canaryLogs)
 	if err != nil {
 		log.WithError(err).Error("Failed to analyze with kubernetes-agent, falling back to default mode")
-		return analyzeLogsWithAI("gemini-2.0-flash-exp", logsContext, "")
+		params := AIAnalysisParams{
+			ModelName:   "gemini-2.0-flash-exp",
+			LogsContext: logsContext,
+			ExtraPrompt: "",
+		}
+		return analyzeLogsWithAI(params)
 	}
 
 	// Build result object

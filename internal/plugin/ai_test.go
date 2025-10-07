@@ -231,9 +231,14 @@ func TestAnalyzeLogsWithAI_Integration(t *testing.T) {
 
 	// Call the real function
 	t.Log("Calling real Google Gemini API...")
-	rawJSON, result, err := analyzeLogsWithAI(modelName, logsContext, "")
+	params := AIAnalysisParams{
+		ModelName:   modelName,
+		LogsContext: logsContext,
+		ExtraPrompt: "",
+	}
+	rawJSON, result, err := analyzeLogsWithAI(params)
 	for i := 0; i < 5; i++ {
-		rawJSON, result, err = analyzeLogsWithAI(modelName, logsContext, "")
+		rawJSON, result, err = analyzeLogsWithAI(params)
 	}
 
 	// Verify results
@@ -305,7 +310,12 @@ func TestAnalyzeLogsWithAI_Integration_ErrorHandling(t *testing.T) {
 		defer func() { googleAPIKey = oldAPIKey }()
 
 		logsContext := "test logs"
-		_, _, err := analyzeLogsWithAI("invalid-model-name-12345", logsContext, "")
+		params := AIAnalysisParams{
+			ModelName:   "invalid-model-name-12345",
+			LogsContext: logsContext,
+			ExtraPrompt: "",
+		}
+		_, _, err := analyzeLogsWithAI(params)
 
 		if err == nil {
 			t.Error("Expected error with invalid model name")
@@ -320,7 +330,12 @@ func TestAnalyzeLogsWithAI_Integration_ErrorHandling(t *testing.T) {
 		googleAPIKey = apiKey
 		defer func() { googleAPIKey = oldAPIKey }()
 
-		_, result, err := analyzeLogsWithAI("gemini-2.0-flash-exp", "", "")
+		params := AIAnalysisParams{
+			ModelName:   "gemini-2.0-flash-exp",
+			LogsContext: "",
+			ExtraPrompt: "",
+		}
+		_, result, err := analyzeLogsWithAI(params)
 
 		// Should still work but might default to promote:true
 		if err != nil {
