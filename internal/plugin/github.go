@@ -170,22 +170,19 @@ func createGitHubIssue(owner, repo, title, body string) error {
 	ctx := context.Background()
 	client := github.NewClient(nil).WithAuthToken(githubToken)
 
-	// Assign to GitHub Copilot and add "jules" label
-	copilotAssignee := "copilot-swe-agent"
+	// First create the issue without assignment
 	julesLabel := "jules"
 	issue := &github.IssueRequest{
-		Title:     &title,
-		Body:      &body,
-		Assignees: &[]string{copilotAssignee},
-		Labels:    &[]string{julesLabel},
+		Title:  &title,
+		Body:   &body,
+		Labels: &[]string{julesLabel},
 	}
 
 	log.WithFields(log.Fields{
-		"owner":    owner,
-		"repo":     repo,
-		"title":    title,
-		"assignee": copilotAssignee,
-		"label":    julesLabel,
+		"owner": owner,
+		"repo":  repo,
+		"title": title,
+		"label": julesLabel,
 	}).Info("Creating GitHub issue")
 
 	createdIssue, _, err := client.Issues.Create(ctx, owner, repo, issue)
@@ -193,14 +190,44 @@ func createGitHubIssue(owner, repo, title, body string) error {
 		return fmt.Errorf("failed to create GitHub issue: %v", err)
 	}
 
+	issueNumber := createdIssue.GetNumber()
 	log.WithFields(log.Fields{
 		"owner":       owner,
 		"repo":        repo,
 		"title":       title,
-		"issueNumber": createdIssue.GetNumber(),
-		"assignee":    copilotAssignee,
+		"issueNumber": issueNumber,
 		"label":       julesLabel,
 	}).Info("Successfully created GitHub issue")
 
+	// Now try to assign to copilot-swe-agent (with error handling that doesn't fail)
+	copilotAssignee := "copilot-swe-agent"
+	assignErr := assignIssueToCopilot(ctx, client, owner, repo, issueNumber, copilotAssignee)
+	if assignErr != nil {
+		log.WithFields(log.Fields{
+			"owner":       owner,
+			"repo":        repo,
+			"issueNumber": issueNumber,
+			"assignee":    copilotAssignee,
+			"error":       assignErr,
+		}).Warn("Failed to assign issue to copilot-swe-agent, but issue was created successfully")
+	} else {
+		log.WithFields(log.Fields{
+			"owner":       owner,
+			"repo":        repo,
+			"issueNumber": issueNumber,
+			"assignee":    copilotAssignee,
+		}).Info("Successfully assigned issue to copilot-swe-agent")
+	}
+
+	return nil
+}
+
+// assignIssueToCopilot assigns an issue to copilot-swe-agent
+func assignIssueToCopilot(ctx context.Context, client *github.Client, owner, repo string, issueNumber int, assignee string) error {
+	// Try to assign the issue
+	_, _, err := client.Issues.AddAssignees(ctx, owner, repo, issueNumber, []string{assignee})
+	if err != nil {
+		return fmt.Errorf("failed to assign issue to %s: %v", assignee, err)
+	}
 	return nil
 }
