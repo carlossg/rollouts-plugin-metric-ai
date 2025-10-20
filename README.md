@@ -64,7 +64,9 @@ spec:
 ```
 
 ### Agent Mode (Kubernetes Agent via A2A)
-Delegates analysis to a Kubernetes Agent using the A2A protocol for enhanced analysis:
+Delegates analysis to a Kubernetes Agent using the A2A protocol for enhanced analysis.
+
+An example agent is available at [carlossg/kubernetes-agent](https://github.com/carlossg/kubernetes-agent)
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
